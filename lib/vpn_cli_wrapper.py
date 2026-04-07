@@ -65,7 +65,7 @@ class VpnCliWrapper(object):
         return status
 
     async def vpn_start(self, location, password):
-        cmd = f'{self.executable} connect -l {location}'
+        cmd = f'{self.executable} connect -l "{location}"'
         out = await sudo_exec(cmd, password)
 
     async def vpn_stop(self):

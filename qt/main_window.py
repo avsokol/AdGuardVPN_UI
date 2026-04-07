@@ -3,8 +3,9 @@ import re
 
 from AsyncioPySide6 import AsyncioPySide6
 from PySide6 import QtCore, QtGui
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QStandardItemModel, QStandardItem
-from PySide6.QtWidgets import QMainWindow, QInputDialog, QLineEdit, QTableView, QAbstractItemView
+from PySide6.QtWidgets import QMainWindow, QInputDialog, QLineEdit, QTableView, QAbstractItemView, QLabel
 
 from lib.vpn_cli_wrapper import VpnCliWrapper
 from qt.main_layout import Ui_MainWindow
@@ -47,7 +48,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_location_select(self):
         indexes = self.locations_tableView.selectionModel().selectedIndexes()
         if len(indexes):
-            location_index = indexes[0]
+            location_index = indexes[2]
             self.current_location = location_index.data()
             self.connect_pushButton.setEnabled(True)
 
@@ -62,7 +63,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.locations_tableView.setModel(self.model)
         self.locations_tableView.hideColumn(1)
-        self.locations_tableView.setColumnWidth(0, 32)
+        self.locations_tableView.setColumnWidth(0, 48)
         self.locations_tableView.setColumnWidth(1, 80)
         self.locations_tableView.setColumnWidth(2, 140)
         self.locations_tableView.setColumnWidth(3, 20)
@@ -73,17 +74,46 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.locations_tableView.horizontalHeader().setStretchLastSection(True)
 
         for location in locations.splitlines():
+            if location.strip() == '' or VpnCliWrapper.EXE_NAME in location:
+                continue
+
             parts = re.split(r"\s\s+", location)
-            iso = parts[0].strip()
-            country = parts[1].strip()
-            city = parts[2].strip()
-            ping = parts[3].strip()
+            try:
+                iso = parts[0].strip()
+                country = parts[1].strip()
+                city = parts[2].strip()
+                ping = parts[3].strip()
+
+            except IndexError:
+                print(f'Error parsing location: {location}')
+                continue
 
             items = [QStandardItem(iso), QStandardItem(country), QStandardItem(city), QStandardItem(ping)]
             for item in items:
                 item.setEditable(False)
 
             self.model.appendRow(items)
+
+        for row in range(self.locations_tableView.model().rowCount()):
+            iso = self.locations_tableView.model().index(row, 0).data()
+            country = self.locations_tableView.model().index(row, 1).data()
+            flag_path = os.path.join(
+                os.path.dirname(os.path.realpath(__file__)), f'img/flags/{iso.lower()}_48x48.png'
+            )
+            if os.path.exists(flag_path):
+                lbl = QLabel()
+                lbl.setPixmap(QtGui.QPixmap(flag_path))
+                idx = self.locations_tableView.model().index(row, 0)
+                self.locations_tableView.setIndexWidget(idx, lbl)
+
+            cell = self.model.item(row, 2)
+            cell.setTextAlignment(Qt.AlignCenter|Qt.AlignVCenter)
+
+            cell = self.model.item(row, 3)
+            cell.setTextAlignment(Qt.AlignRight|Qt.AlignVCenter)
+
+            cell = self.model.item(row, 0)
+            cell.setToolTip(country)
 
         if current_location:
             matches = self.model.findItems(current_location, QtCore.Qt.MatchFlag.MatchContains, column=2)
@@ -94,6 +124,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def refresh_connections(self):
         AsyncioPySide6.runTask(self._refresh_connections())
+        print('Here')
+        print('')
 
     def update_connection_elements_state(self, status, location=None):
         if not status:
