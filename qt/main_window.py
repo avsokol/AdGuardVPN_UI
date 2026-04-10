@@ -124,8 +124,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def refresh_connections(self):
         AsyncioPySide6.runTask(self._refresh_connections())
-        print('Here')
-        print('')
 
     def update_connection_elements_state(self, status, location=None):
         if not status:
